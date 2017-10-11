@@ -11,7 +11,7 @@
 #include <command.h>
 #include <g_dnl.h>
 
-static int do_fastboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+int do_fastboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	int ret;
 
@@ -34,3 +34,4 @@ U_BOOT_CMD(
 	"fastboot - enter USB Fastboot protocol",
 	""
 );
+

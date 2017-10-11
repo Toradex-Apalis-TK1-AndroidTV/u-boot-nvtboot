@@ -51,6 +51,19 @@
 #endif
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
+	"partitions=" \
+	"uuid_disk=${uuid_gpt_disk};" \
+	"name=bootloader,start=0x00F00000,size=4604304,uuid=${uuid_gpt_bootloader};" \
+	"name=LNX,size=16777216,uuid=${uuid_gpt_boot};" \
+	"name=DTB,size=4194304,uuid=${uuid_gpt_dtb};" \
+	"name=SOS,size=16777216,uuid=${uuid_gpt_recovery};" \
+	"name=APP,size=1342177280,uuid=${uuid_gpt_system};" \
+	"name=VNR,size=419430400,uuid=${uuid_gpt_vendor};" \
+	"name=CAC,size=805306368,uuid=${uuid_gpt_cache};" \
+	"name=MSC,size=2097152,uuid=${uuid_gpt_misc};" \
+	"name=MDA,size=2097152,uuid=${uuid_gpt_metadata};" \
+	"name=FCT,size=16777216,uuid=${uuid_gpt_factory};" \
+	"name=UDA,size=13090422784,uuid=${uuid_gpt_userdata};\0" \
 	TEGRA_DEVICE_SETTINGS \
 	MEM_LAYOUT_ENV_SETTINGS \
 	"fdt_high=ffffffff\0" \
