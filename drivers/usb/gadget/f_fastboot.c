@@ -19,14 +19,6 @@
 #include <linux/compiler.h>
 #include <version.h>
 #include <g_dnl.h>
-#ifdef CONFIG_FASTBOOT_FLASH_MMC_DEV
-#include <fb_mmc.h>
-#endif
-#if defined(CONFIG_TEGRA124)
-#include <asm/io.h>
-#include <asm/arch-tegra/pmc.h>
-#include <android_image.h>
-#endif
 
 #define FASTBOOT_VERSION		"0.4"
 
@@ -323,18 +315,6 @@ static void compl_do_reset(struct usb_ep *ep, struct usb_request *req)
 
 static void cb_reboot(struct usb_ep *ep, struct usb_request *req)
 {
-#if defined(CONFIG_TEGRA124)
-	char *cmd = req->buf;
-	struct pmc_ctlr *pmc = (struct pmc_ctlr *)NV_PA_PMC_BASE;
-	if (strncmp("-bootloader", cmd + 6, 11) == 0) {
-		printf("Setting reboot-bootloader!\n");
-		writel(readl(&pmc->pmc_scratch0) | (1 << 30), &pmc->pmc_scratch0);
-	}
-	else if (strncmp("-recovery", cmd + 6, 9) == 0) {
-		printf("Setting reboot-recovery!\n");
-		writel(readl(&pmc->pmc_scratch0) | (1 << 31), &pmc->pmc_scratch0);
-	}
-#endif
 	fastboot_func->in_req->complete = compl_do_reset;
 	fastboot_tx_write_str("OKAY");
 }
@@ -472,21 +452,12 @@ static void cb_download(struct usb_ep *ep, struct usb_request *req)
 static void do_bootm_on_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	char boot_addr_start[12];
-#ifdef CONFIG_CMD_BOOTAI
-	char *bootm_args[] = { "bootai", "ram", boot_addr_start, NULL };
-#else
 	char *bootm_args[] = { "bootm", boot_addr_start, NULL };
-#endif
 
 	puts("Booting kernel..\n");
 
-#ifdef CONFIG_CMD_BOOTAI
-	sprintf(boot_addr_start, "0x%x", CONFIG_USB_FASTBOOT_BUF_ADDR);
-	do_bootai(NULL, 0, 3, bootm_args);
-#else
 	sprintf(boot_addr_start, "0x%lx", load_addr);
 	do_bootm(NULL, 0, 2, bootm_args);
-#endif
 
 	/* This only happens if image is somehow faulty so we start over */
 	do_reset(NULL, 0, 0, NULL);
@@ -496,48 +467,6 @@ static void cb_boot(struct usb_ep *ep, struct usb_request *req)
 {
 	fastboot_func->in_req->complete = do_bootm_on_complete;
 	fastboot_tx_write_str("OKAY");
-}
-
-#ifdef CONFIG_FASTBOOT_FLASH
-static void cb_flash(struct usb_ep *ep, struct usb_request *req)
-{
-	char *cmd = req->buf;
-	char response[RESPONSE_LEN];
-
-	strsep(&cmd, ":");
-	if (!cmd) {
-		error("missing partition name\n");
-		fastboot_tx_write_str("FAILmissing partition name");
-		return;
-	}
-
-	strcpy(response, "FAILno flash device defined");
-#ifdef CONFIG_FASTBOOT_FLASH_MMC_DEV
-	fb_mmc_flash_write(cmd, (void *)CONFIG_USB_FASTBOOT_BUF_ADDR,
-			   download_bytes, response);
-#endif
-	fastboot_tx_write_str(response);
-}
-#endif
-
-static void cb_oem(struct usb_ep *ep, struct usb_request *req)
-{
-	char *cmd = req->buf;
-#if defined(CONFIG_TEGRA124)
-	struct pmc_ctlr *pmc = (struct pmc_ctlr *)NV_PA_PMC_BASE;
-	if (strncmp("recovery", cmd + 4, 8) == 0) {
-		printf("Setting reboot-recovery!\n");
-		writel(readl(&pmc->pmc_scratch0) | (1 << 31), &pmc->pmc_scratch0);
-		fastboot_func->in_req->complete = compl_do_reset;
-		fastboot_tx_write_str("OKAY");
-	} else
-#endif
-	if (strncmp("unlock", cmd + 4, 8) == 0) {
-		fastboot_tx_write_str("FAILnot implemented");
-	}
-	else {
-		fastboot_tx_write_str("FAILunknown oem command");
-	}
 }
 
 struct cmd_dispatch_info {
@@ -558,17 +487,6 @@ static const struct cmd_dispatch_info cmd_dispatch_info[] = {
 	}, {
 		.cmd = "boot",
 		.cb = cb_boot,
-	},
-
-#ifdef CONFIG_FASTBOOT_FLASH
-	{
-		.cmd = "flash",
-		.cb = cb_flash,
-	},
-#endif
-	{
-		.cmd = "oem",
-		.cb = cb_oem,
 	},
 };
 
